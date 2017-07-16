@@ -7,6 +7,7 @@ namespace BookHorseBot.Models
     class Story
     {
 
+
         public class Rootobject
         {
             public Datum[] data { get; set; }
@@ -42,7 +43,7 @@ namespace BookHorseBot.Models
         public class Attributes
         {
             public string title { get; set; }
-            public string description { get; set; }
+            public string short_description { get; set; }
             public DateTime date_published { get; set; }
             public int total_num_views { get; set; }
             public int num_words { get; set; }
@@ -114,6 +115,7 @@ namespace BookHorseBot.Models
         {
             public string self { get; set; }
         }
+
 
 
     }
