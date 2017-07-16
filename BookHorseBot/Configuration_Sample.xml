@@ -1,0 +1,13 @@
+﻿<Config>
+  <FimFiction>
+    <Token>LEAVE_BLANK</Token>
+    <ClientId>ABCDEF</ClientId>
+    <ClientSecret>ABCDEF</ClientSecret>
+  </FimFiction>
+  <Reddit>
+    <Username>ABCDEF</Username>
+    <Password>ABCDEF</Password>
+    <ClientId>ABCDEF</ClientId>
+    <ClientSecret>ABCDEF</ClientSecret>
+  </Reddit>
+</Config>
