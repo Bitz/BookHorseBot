@@ -20,5 +20,18 @@ namespace BookHorseBot
         //{
         //    return $@"\[{tag}\]((?:.|\n)+?)\[\/{tag}\]";
         //}
+
+        public static string StoryQueryUrl(string query)
+        {
+            string url = "https://www.fimfiction.net/api/v2/stories" +
+                         $"{query}" +
+                         "&sort=-relevance" +
+                         "&page[size]=1" +
+                         "&fields[user]=name,meta" +
+                         "&fields[story]=title,short_description,date_published,total_num_views,num_words,rating,completion_status,tags,content_rating,author" +
+                         "&fields[story_tag]=name,type" +
+                         "&include=characters,tags,author";
+            return "";
+        }
     }
 }
