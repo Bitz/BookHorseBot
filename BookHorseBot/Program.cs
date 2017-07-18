@@ -134,7 +134,8 @@ namespace BookHorseBot
                                 "\r\n\r\n" +
                                 $"**Tags**: {GenerateTags(root)}";
                 }
-                template += "\r\n \r\n" +
+                template += "[](//sp)" +
+                            "\r\n \r\n" +
                             "-----";
             }
             if (rootList.All(x => x.data.Length == 0) || rootList.Count == 0)
