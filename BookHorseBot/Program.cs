@@ -20,11 +20,16 @@ namespace BookHorseBot
     {
         public static HttpClient BotClient = new HttpClient();
 
+        static List<string> commandList = new List<String>
+        {
+            "S:" //Story Lookup - using Ids!
+        };
+
         static void Main()
         {
             Console.Title = "BookHorseBot " + Constants.Version;
             List<string> ignoredUsers = new List<string> {"nightmirrormoon"};
-
+           
             //Does all the dirty work of handling oAuth and tokens. Gives botclient authentication.
             AuthorizeFimFictionBot();
             Reddit reddit = AuthorizeRedditBot();
@@ -99,7 +104,7 @@ namespace BookHorseBot
             MatchCollection matches = Regex.Matches(comment.Body, @"(?<=\{)[^}]*(?=\})", RegexOptions.None);
             foreach (Match match in matches)
             {
-                list.Add(Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 -]", ""));
+                list.Add(Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 :]", ""));
             }
             return list;
         }
@@ -207,19 +212,29 @@ namespace BookHorseBot
             List<Story.Rootobject> resultCollection = new List<Story.Rootobject>();
             foreach (var sanitizedName in sanitizedNames)
             {
-                string queryUrl = "https://www.fimfiction.net/api/v2/stories" +
-                                  "?include=characters,tags,author" +
-                                  "&sort=-relevance" +
-                                  "&page[size]=1" +
-                                  "&fields[user]=name,meta" +
-                                  "&fields[story]=title,short_description,date_published,total_num_views,num_words,rating,completion_status,tags,content_rating,author" +
-                                  "&fields[story_tag]=name,type" +
-                                  $"&query={sanitizedName}";
-                string res =
-                    BotClient.GetStringAsync(queryUrl)
-                        .Result;
-                Story.Rootobject searchResult = JsonConvert.DeserializeObject<Story.Rootobject>(res);
-                resultCollection.Add(searchResult);
+                if (commandList.Any(x => sanitizedName.StartsWith(x)))
+                {
+                    string commandBody = sanitizedName.Substring(2, sanitizedName.Length);
+                    switch (sanitizedName.Substring(0, 2))
+                    {
+                        case "S:":
+                        {
+                            string queryUrl = Constants.StoryQueryUrl($"/{commandBody}?");
+                                Story.Rootobject searchResult = JsonConvert.DeserializeObject<Story.Rootobject>(queryUrl);
+                            resultCollection.Add(searchResult);
+                        }
+                            break;
+                    }
+                }
+                else
+                {
+                    string queryUrl = Constants.StoryQueryUrl($"?query={sanitizedName}");
+                    string res =
+                        BotClient.GetStringAsync(queryUrl)
+                            .Result;
+                    Story.Rootobject searchResult = JsonConvert.DeserializeObject<Story.Rootobject>(res);
+                    resultCollection.Add(searchResult);
+                }
             }
             return resultCollection;
         }
