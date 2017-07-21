@@ -196,16 +196,7 @@ namespace BookHorseBot
                         case "s":
                         case "story":
                         {
-                            string queryUrl = Constants.StoryQueryUrl($"/{commandBody}?");
-                            string res = BotClient.GetStringAsync(queryUrl).Result;
-                            StoryData.StorySingle searchResult =
-                                JsonConvert.DeserializeObject<StoryData.StorySingle>(res);
-                            StoryData.Story r = new StoryData.Story
-                            {
-                                data = new StoryData.Datum[1]
-                            };
-                            r.data[0] = searchResult.data;
-                            r.included = searchResult.included;
+                            StoryData.Story r = StoryIdLookup(commandBody);
                             resultCollection.Add(r);
                         }
                             break;
@@ -213,15 +204,51 @@ namespace BookHorseBot
                 }
                 else
                 {
-                    string queryUrl = Constants.StoryQueryUrl($"?query={sanitizedName}&");
-                    string res =
-                        BotClient.GetStringAsync(queryUrl)
-                            .Result;
-                    StoryData.Story searchResult = JsonConvert.DeserializeObject<StoryData.Story>(res);
-                    resultCollection.Add(searchResult);
+                    if (Uri.IsWellFormedUriString(sanitizedName, UriKind.RelativeOrAbsolute))
+                    {
+                        Uri myUri = new Uri(sanitizedName);
+                        if (myUri.Host.Contains("fimfiction.net"))
+                        {
+                            var s = myUri.ToString().Split('/').ToList();
+                            int index = s.FindIndex(x => x == "story") + 1;
+                            string id = s[index];
+                            StoryData.Story r = StoryIdLookup(id);
+                            resultCollection.Add(r);
+                        }
+                        else
+                        {
+                            //Pass a null to tell the user that nothing was found.
+                            StoryData.Story r = new StoryData.Story();
+                            resultCollection.Add(r);
+                        }
+                    }
+                    else
+                    {
+                        string queryUrl = Constants.StoryQueryUrl($"?query={sanitizedName}&");
+                        string res =
+                            BotClient.GetStringAsync(queryUrl)
+                                .Result;
+                        StoryData.Story searchResult = JsonConvert.DeserializeObject<StoryData.Story>(res);
+                        resultCollection.Add(searchResult);
+                    }
                 }
             }
             return resultCollection;
+        }
+
+        private static StoryData.Story StoryIdLookup(string ID)
+        {
+            string queryUrl = Constants.StoryQueryUrl($"/{ID}?");
+            string res = BotClient.GetStringAsync(queryUrl).Result;
+            StoryData.StorySingle searchResult =
+                JsonConvert.DeserializeObject<StoryData.StorySingle>(res);
+            StoryData.Story r = new StoryData.Story
+            {
+                data = new StoryData.Datum[1]
+            };
+            r.data[0] = searchResult.data;
+            r.included = searchResult.included;
+            return r;
         }
     }
 }
