@@ -1,4 +1,4 @@
-﻿using System;
+﻿
 
 namespace BookHorseBot.Models
 {
@@ -13,28 +13,26 @@ namespace BookHorseBot.Models
 
 
         //Will eventually group each request with their respective responses to help group data
-        public class UserRequest
+        public class Command
         {
             public string Request { get; set; }
             public RequestType Type { get; set; }
-            public RequestResult Result { get; set; } = RequestResult.NothingHappened;
-            public string Response { get; set; }
-            public int SortOrder { get; set; } = 0;
-
-
+            public RequestResult Result { get; set; } = RequestResult.Nothing_Happened;
+            public object Response { get; set; } = null;
+            
             public enum RequestResult
             {
-                Success,
-                Fail,
-                NotFound,
-                NothingHappened
+                Success,        //All good! 
+                Fail,           //Some error or exception occured when performing the command.
+                Not_Found,       //Search or request returned no results
+                Nothing_Happened //Nothing happened means the application didn't do anything....Yet
             }
 
             public enum RequestType
             {
-                Search_Name,
-                Search_ID,
-                Search_URL
+                Search_Name,    //{My Little Dashie}
+                Search_ID,      //{S:1888}
+                Search_URL      //{https://www.fimfiction.net/story/1888/my-little-dashie}
             }
         }
     }

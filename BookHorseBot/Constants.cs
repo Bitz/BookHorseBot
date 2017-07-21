@@ -16,7 +16,7 @@ namespace BookHorseBot
         
         public static string NotAllowed
             => "\r\n [](/twirage) \r\n" +
-               "  Please don't link mature rated fanfics in this sub! It isn't allowed!";
+               "Please don't link mature rated fanfics in this sub! It isn't allowed!";
 
         public static string FimFictionUrl => "https://www.fimfiction.net/api/v2"; //No trailing slash
 

@@ -68,41 +68,6 @@ namespace BookHorseBot
             }
         }
 
-        #region Webclient Authorizations
-        private static Reddit AuthorizeRedditBot()
-        {
-            BotWebAgent webAgent = new BotWebAgent(C.Reddit.Username,
-                C.Reddit.Password,
-                C.Reddit.ClientId,
-                C.Reddit.ClientSecret,
-                "https://google.com");
-
-            Reddit reddit = new Reddit(webAgent, true);
-            reddit.LogIn(C.Reddit.Username, C.Reddit.Password);
-            string redditName = reddit.User.FullName;
-            if (redditName.ToLower() == C.Reddit.Username.ToLower())
-            {
-                Console.WriteLine("Logged in!");
-            }
-            return reddit;
-        }
-
-        private static void AuthorizeFimFictionBot()
-        {
-            if (string.IsNullOrEmpty(C.FimFiction.Token))
-            {
-                string receiveStream = Get.FimFictionGetAuthToken(BotClient);
-                FfAuthorization authorization = JsonConvert.DeserializeObject<FfAuthorization>(receiveStream);
-                C.FimFiction.Token = authorization.access_token;
-                Save.Config();
-            }
-
-            BotClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            BotClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
-                C.FimFiction.Token);
-        }
-        #endregion
-
         private static List<string> ExtractCommands(MatchCollection matches)
         {
             List<string> list = new List<string>();
@@ -250,5 +215,40 @@ namespace BookHorseBot
             r.included = searchResult.included;
             return r;
         }
+
+        #region Webclient Authorizations
+        private static Reddit AuthorizeRedditBot()
+        {
+            BotWebAgent webAgent = new BotWebAgent(C.Reddit.Username,
+                C.Reddit.Password,
+                C.Reddit.ClientId,
+                C.Reddit.ClientSecret,
+                "https://google.com");
+
+            Reddit reddit = new Reddit(webAgent, true);
+            reddit.LogIn(C.Reddit.Username, C.Reddit.Password);
+            string redditName = reddit.User.FullName;
+            if (redditName.ToLower() == C.Reddit.Username.ToLower())
+            {
+                Console.WriteLine("Logged in!");
+            }
+            return reddit;
+        }
+
+        private static void AuthorizeFimFictionBot()
+        {
+            if (string.IsNullOrEmpty(C.FimFiction.Token))
+            {
+                string receiveStream = Get.FimFictionGetAuthToken(BotClient);
+                FfAuthorization authorization = JsonConvert.DeserializeObject<FfAuthorization>(receiveStream);
+                C.FimFiction.Token = authorization.access_token;
+                Save.Config();
+            }
+
+            BotClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            BotClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
+                C.FimFiction.Token);
+        }
+        #endregion
     }
 }
