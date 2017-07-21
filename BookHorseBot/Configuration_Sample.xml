@@ -10,4 +10,8 @@
     <ClientId>ABCDEF</ClientId>
     <ClientSecret>ABCDEF</ClientSecret>
   </Reddit>
+  <Ignored>
+    <User>ABC</User>
+    <User>ABV</User>
+  </Ignored>
 </Config>

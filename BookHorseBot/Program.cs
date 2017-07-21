@@ -10,8 +10,10 @@ using BookHorseBot.Models;
 using Newtonsoft.Json;
 using RedditSharp;
 using RedditSharp.Things;
+
 using static BookHorseBot.Configuration;
 using static BookHorseBot.Models.Misc;
+
 using Reddit = RedditSharp.Reddit;
 
 namespace BookHorseBot
@@ -22,23 +24,21 @@ namespace BookHorseBot
 
         static readonly List<string> CommandList = new List<String>
         {
-            "S:" //Story Lookup - using Ids!
+            "S:" //StoryData Lookup - using Ids!
         };
 
         static void Main()
         {
+            string redditName = C.Reddit.Username;
+            bool dbug = Debugger.IsAttached;
             Console.Title = "BookHorseBot " + Constants.Version;
-            List<string> ignoredUsers = new List<string> {"nightmirrormoon"};
-           
+            List<string> ignoredUsers = C.Ignored.User;
             //Does all the dirty work of handling oAuth and tokens. Gives botclient authentication.
             AuthorizeFimFictionBot();
             Reddit reddit = AuthorizeRedditBot();
-            string redditName = reddit.User.FullName;
-
-            bool dbug = Debugger.IsAttached;
+            redditName = reddit.User.FullName;
             Console.WriteLine(dbug ? "Debug detected. Running on test subreddit!" : "Running on Main subreddit!");
             Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "mylittlepony");
-
             IEnumerable<Comment> commentStream =
                 subreddit.CommentStream.Where(c => !ignoredUsers.Contains(c.AuthorName.ToLower())
                                                    && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-15)
@@ -46,17 +46,20 @@ namespace BookHorseBot
 
             foreach (Comment comment in commentStream)
             {
-                if (!comment.Body.Contains("{") && !comment.Body.Contains("}"))
+                //Look for { and }, if none are found, skip!
+                MatchCollection matches = Regex.Matches(comment.Body, @"(?<=\{)[^}]*(?=\})", RegexOptions.None);
+                if (matches.Count == 0)
                 {
                     continue;
                 }
+                //Check to see if we already replied to this comment.
                 Comment qualifiedComment = reddit.GetComment(new Uri(comment.Shortlink));
                 if (qualifiedComment.Comments.All(x => x.AuthorName != redditName))
                 {
-                    List<string> list = ExtractStoryNames(comment);
-                    if (list.Count > 0)
+                    List<string> commands = ExtractCommands(matches);
+                    if (commands.Count > 0)
                     {
-                        List<Story.Rootobject> stories = GetPostText(list);
+                        List<StoryData.Story> stories = GetPostText(commands);
                         string postReplyBody = GeneratePostBody(stories);
                         comment.Reply(postReplyBody);
                         Console.WriteLine($"Reply posted to {comment.AuthorName}!");
@@ -65,13 +68,14 @@ namespace BookHorseBot
             }
         }
 
+        #region Webclient Authorizations
         private static Reddit AuthorizeRedditBot()
         {
             BotWebAgent webAgent = new BotWebAgent(C.Reddit.Username,
-                                                C.Reddit.Password,
-                                                C.Reddit.ClientId,
-                                                C.Reddit.ClientSecret,
-                                                "https://google.com");
+                C.Reddit.Password,
+                C.Reddit.ClientId,
+                C.Reddit.ClientSecret,
+                "https://google.com");
 
             Reddit reddit = new Reddit(webAgent, true);
             reddit.LogIn(C.Reddit.Username, C.Reddit.Password);
@@ -97,11 +101,11 @@ namespace BookHorseBot
             BotClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
                 C.FimFiction.Token);
         }
+        #endregion
 
-        private static List<string> ExtractStoryNames(Comment comment)
+        private static List<string> ExtractCommands(MatchCollection matches)
         {
             List<string> list = new List<string>();
-            MatchCollection matches = Regex.Matches(comment.Body, @"(?<=\{)[^}]*(?=\})", RegexOptions.None);
             foreach (Match match in matches)
             {
                 list.Add(Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 :]", ""));
@@ -109,7 +113,7 @@ namespace BookHorseBot
             return list;
         }
 
-        private static string GeneratePostBody(List<Story.Rootobject> rootList)
+        private static string GeneratePostBody(List<StoryData.Story> rootList)
         {
             string template = "";
             foreach (var root in rootList)
@@ -119,7 +123,7 @@ namespace BookHorseBot
                     template += Constants.NoResults;
                     continue;
                 }
-                Story.Datum story = root.data.First();
+                StoryData.Datum story = root.data.First();
                 if (story.attributes.content_rating == "mature")
                 {
                     template += Constants.NotAllowed;
@@ -153,7 +157,7 @@ namespace BookHorseBot
             return template;
         }
 
-        private static string GetUsername(Story.Rootobject s)
+        private static string GetUsername(StoryData.Story s)
         {
             string authorId = s.data.First().relationships.author.data.id;
 
@@ -161,7 +165,7 @@ namespace BookHorseBot
             return authorName;
         }
 
-        private static string GenerateTags(Story.Rootobject relationshipsTags)
+        private static string GenerateTags(StoryData.Story relationshipsTags)
         {
             List<string> tagIds =
                 relationshipsTags.data.First().relationships.tags.data.Select(datum1 => datum1.id).ToList();
@@ -178,9 +182,9 @@ namespace BookHorseBot
             return builtTagLineContent;
         }
 
-        private static List<Story.Rootobject> GetPostText(List<string> sanitizedNames)
+        private static List<StoryData.Story> GetPostText(List<string> sanitizedNames)
         {
-            List<Story.Rootobject> resultCollection = new List<Story.Rootobject>();
+            List<StoryData.Story> resultCollection = new List<StoryData.Story>();
             foreach (var sanitizedName in sanitizedNames)
             {
                 if (CommandList.Any(x => sanitizedName.StartsWith(x)))
@@ -194,11 +198,11 @@ namespace BookHorseBot
                         {
                             string queryUrl = Constants.StoryQueryUrl($"/{commandBody}?");
                             string res = BotClient.GetStringAsync(queryUrl).Result;
-                            Story.RootobjectSingle searchResult =
-                                JsonConvert.DeserializeObject<Story.RootobjectSingle>(res);
-                            Story.Rootobject r = new Story.Rootobject
+                            StoryData.StorySingle searchResult =
+                                JsonConvert.DeserializeObject<StoryData.StorySingle>(res);
+                            StoryData.Story r = new StoryData.Story
                             {
-                                data = new Story.Datum[1]
+                                data = new StoryData.Datum[1]
                             };
                             r.data[0] = searchResult.data;
                             r.included = searchResult.included;
@@ -213,7 +217,7 @@ namespace BookHorseBot
                     string res =
                         BotClient.GetStringAsync(queryUrl)
                             .Result;
-                    Story.Rootobject searchResult = JsonConvert.DeserializeObject<Story.Rootobject>(res);
+                    StoryData.Story searchResult = JsonConvert.DeserializeObject<StoryData.Story>(res);
                     resultCollection.Add(searchResult);
                 }
             }

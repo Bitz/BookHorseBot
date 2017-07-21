@@ -1,4 +1,5 @@
-﻿using System.Xml.Serialization;
+﻿using System.Collections.Generic;
+using System.Xml.Serialization;
 using BookHorseBot.Functions;
 
 namespace BookHorseBot
@@ -45,6 +46,13 @@ namespace BookHorseBot.Models
         public string ClientSecret { get; set; }
     }
 
+    [XmlRoot(ElementName = "Ignored")]
+    public class Ignored
+    {
+        [XmlElement(ElementName = "User")]
+        public List<string> User { get; set; }
+    }
+
     [XmlRoot(ElementName = "Config")]
     public class Config
     {
@@ -52,6 +60,8 @@ namespace BookHorseBot.Models
         public FimFiction FimFiction { get; set; }
         [XmlElement(ElementName = "Reddit")]
         public Reddit Reddit { get; set; }
+        [XmlElement(ElementName = "Ignored")]
+        public Ignored Ignored { get; set; }
     }
 
 }

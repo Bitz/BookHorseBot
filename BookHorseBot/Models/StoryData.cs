@@ -4,18 +4,17 @@ using System.Diagnostics.CodeAnalysis;
 namespace BookHorseBot.Models
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    class Story
+    internal class StoryData
     {
-        public class Rootobject
+        public class Story
         {
             public Datum[] data { get; set; }
             public Included[] included { get; set; }
         }
 
-        public class RootobjectSingle
+        public class StorySingle : Story
         {
-            public Datum data { get; set; }
-            public Included[] included { get; set; }
+            public new Datum data { get; set; }
         }
 
         public class Links
@@ -26,10 +25,8 @@ namespace BookHorseBot.Models
             public string self { get; set; }
         }
 
-        public class Datum
+        public class Datum : Data
         {
-            public string id { get; set; }
-            public string type { get; set; }
             public Attributes attributes { get; set; }
             public Relationships relationships { get; set; }
             public Links links { get; set; }
@@ -79,10 +76,8 @@ namespace BookHorseBot.Models
             public string url { get; set; }
         }
 
-        public class Included
+        public class Included : Data
         {
-            public string id { get; set; }
-            public string type { get; set; }
             public Attributes attributes { get; set; }
             public Meta meta { get; set; }
             public Links links { get; set; }

@@ -5,6 +5,7 @@ namespace BookHorseBot
     public class Constants
     {
         public static string Version => Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
         public static string Footer 
             => "\r\n \r\n" +
             $"This is a bot | [Report problems](/message/compose/?to=BitzLeon&subject=Bookhorsebot running BHB {Version}) | [Source](https://github.com/Bitz/BookHorseBot) | [Info](https://bitz.rocks/bookhorsebot/)";
@@ -17,9 +18,11 @@ namespace BookHorseBot
             => "\r\n [](/twirage) \r\n" +
                "  Please don't link mature rated fanfics in this sub! It isn't allowed!";
 
+        public static string FimFictionUrl => "https://www.fimfiction.net/api/v2"; //No trailing slash
+
         public static string StoryQueryUrl(string query)
         {
-            string url = "https://www.fimfiction.net/api/v2/stories" +
+            string url = $"{FimFictionUrl}/stories" +
                          $"{query}" +
                          "sort=-relevance" +
                          "&page[size]=1" +
