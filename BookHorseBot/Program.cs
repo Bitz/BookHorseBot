@@ -20,7 +20,7 @@ namespace BookHorseBot
     {
         public static HttpClient BotClient = new HttpClient();
 
-        static List<string> commandList = new List<String>
+        static readonly List<string> CommandList = new List<String>
         {
             "S:" //Story Lookup - using Ids!
         };
@@ -153,35 +153,6 @@ namespace BookHorseBot
             return template;
         }
 
-        //private static string GenerateDescription(string description)
-        //{
-        //    if (description.Length > 500)
-        //    {
-        //        description = description.Substring(0, 500);
-        //    }
-        //    if (description.Contains("[url=") && !description.Contains("[/url]"))
-        //    {
-        //        //If we stripped part of the body and didn't keep the closing tag for this.
-        //        description = Regex.Replace(description, @"\[url=(.+?)\]", "");
-        //    }
-        //    //Bold
-        //    description = Regex.Replace(description, Constants.RegexBbCode("b"), match => "**" + match.Groups[1] + "**",
-        //        RegexOptions.Multiline & RegexOptions.IgnoreCase);
-        //    //Italics
-        //    description = Regex.Replace(description, Constants.RegexBbCode("i"), match => "*" + match.Groups[1] + "*",
-        //        RegexOptions.Multiline & RegexOptions.IgnoreCase);
-        //    //Strike-through
-        //    description = Regex.Replace(description, Constants.RegexBbCode("s"), match => "~~" + match.Groups[1] + "~~",
-        //        RegexOptions.Multiline & RegexOptions.IgnoreCase);
-        //    //URL
-        //    description = Regex.Replace(description, @"\[url=(.+?)\]((?:.|\n)+?)\[\/url\]",
-        //        match => $"[{match.Groups[2]}]({match.Groups[1]})", RegexOptions.Multiline & RegexOptions.IgnoreCase);
-        //    //Everything else
-        //    description = Regex.Replace(description, @"[[\/\!]*?[^\[\]]*?](?!\()", "",
-        //        RegexOptions.Multiline & RegexOptions.IgnoreCase);
-        //    return description;
-        //}
-
         private static string GetUsername(Story.Rootobject s)
         {
             string authorId = s.data.First().relationships.author.data.id;
@@ -212,23 +183,33 @@ namespace BookHorseBot
             List<Story.Rootobject> resultCollection = new List<Story.Rootobject>();
             foreach (var sanitizedName in sanitizedNames)
             {
-                if (commandList.Any(x => sanitizedName.StartsWith(x)))
+                if (CommandList.Any(x => sanitizedName.StartsWith(x)))
                 {
-                    string commandBody = sanitizedName.Substring(2, sanitizedName.Length);
-                    switch (sanitizedName.Substring(0, 2))
+                    string commandBody = sanitizedName.Substring(sanitizedName.IndexOf(':') + 1,
+                        sanitizedName.Length - 2);
+                    switch (sanitizedName.Split(':').First().ToLower())
                     {
-                        case "S:":
+                        case "s":
+                        case "story":
                         {
                             string queryUrl = Constants.StoryQueryUrl($"/{commandBody}?");
-                                Story.Rootobject searchResult = JsonConvert.DeserializeObject<Story.Rootobject>(queryUrl);
-                            resultCollection.Add(searchResult);
+                            string res = BotClient.GetStringAsync(queryUrl).Result;
+                            Story.RootobjectSingle searchResult =
+                                JsonConvert.DeserializeObject<Story.RootobjectSingle>(res);
+                            Story.Rootobject r = new Story.Rootobject
+                            {
+                                data = new Story.Datum[1]
+                            };
+                            r.data[0] = searchResult.data;
+                            r.included = searchResult.included;
+                            resultCollection.Add(r);
                         }
                             break;
                     }
                 }
                 else
                 {
-                    string queryUrl = Constants.StoryQueryUrl($"?query={sanitizedName}");
+                    string queryUrl = Constants.StoryQueryUrl($"?query={sanitizedName}&");
                     string res =
                         BotClient.GetStringAsync(queryUrl)
                             .Result;

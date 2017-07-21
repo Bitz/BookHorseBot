@@ -6,16 +6,16 @@ namespace BookHorseBot.Models
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     class Story
     {
-
-
         public class Rootobject
         {
             public Datum[] data { get; set; }
             public Included[] included { get; set; }
-            public Links links { get; set; }
-            public string uri { get; set; }
-            public string method { get; set; }
-            public Debug debug { get; set; }
+        }
+
+        public class RootobjectSingle
+        {
+            public Datum data { get; set; }
+            public Included[] included { get; set; }
         }
 
         public class Links
@@ -23,11 +23,7 @@ namespace BookHorseBot.Models
             public string first { get; set; }
             public string prev { get; set; }
             public string next { get; set; }
-        }
-
-        public class Debug
-        {
-            public string duration { get; set; }
+            public string self { get; set; }
         }
 
         public class Datum
@@ -36,12 +32,14 @@ namespace BookHorseBot.Models
             public string type { get; set; }
             public Attributes attributes { get; set; }
             public Relationships relationships { get; set; }
-            public Links1 links { get; set; }
+            public Links links { get; set; }
             public Meta meta { get; set; }
         }
 
         public class Attributes
         {
+            public string name { get; set; }
+            public string type { get; set; }
             public string title { get; set; }
             public string short_description { get; set; }
             public DateTime date_published { get; set; }
@@ -71,22 +69,13 @@ namespace BookHorseBot.Models
 
         public class Tags
         {
-            public Datum1[] data { get; set; }
+            public Datum[] data { get; set; }
         }
 
-        public class Datum1
-        {
-            public string type { get; set; }
-            public string id { get; set; }
-        }
-
-        public class Links1
-        {
-            public string self { get; set; }
-        }
 
         public class Meta
         {
+            public string old_id { get; set; }
             public string url { get; set; }
         }
 
@@ -94,29 +83,9 @@ namespace BookHorseBot.Models
         {
             public string id { get; set; }
             public string type { get; set; }
-            public Attributes1 attributes { get; set; }
-            public Meta1 meta { get; set; }
-            public Links2 links { get; set; }
+            public Attributes attributes { get; set; }
+            public Meta meta { get; set; }
+            public Links links { get; set; }
         }
-
-        public class Attributes1
-        {
-            public string name { get; set; }
-            public string type { get; set; }
-        }
-
-        public class Meta1
-        {
-            public string old_id { get; set; }
-            public string url { get; set; }
-        }
-
-        public class Links2
-        {
-            public string self { get; set; }
-        }
-
-
-
     }
 }
