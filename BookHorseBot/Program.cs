@@ -29,14 +29,13 @@ namespace BookHorseBot
 
         static void Main()
         {
-            string redditName = C.Reddit.Username;
             bool dbug = Debugger.IsAttached;
             Console.Title = "BookHorseBot " + Constants.Version;
             List<string> ignoredUsers = C.Ignored.User;
             //Does all the dirty work of handling oAuth and tokens. Gives botclient authentication.
             AuthorizeFimFictionBot();
             Reddit reddit = AuthorizeRedditBot();
-            redditName = reddit.User.FullName;
+            string redditName = reddit.User.FullName;
             Console.WriteLine(dbug ? "Debug detected. Running on test subreddit!" : "Running on Main subreddit!");
             Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "mylittlepony");
             IEnumerable<Comment> commentStream =
@@ -56,11 +55,11 @@ namespace BookHorseBot
                 Comment qualifiedComment = reddit.GetComment(new Uri(comment.Shortlink));
                 if (qualifiedComment.Comments.All(x => x.AuthorName != redditName))
                 {
-                    List<string> commands = ExtractCommands(matches);
+                    List<Command> commands = ExtractCommands(matches);
                     if (commands.Count > 0)
                     {
-                        List<StoryData.Story> stories = GetPostText(commands);
-                        string postReplyBody = GeneratePostBody(stories);
+                        GetPostText(commands);
+                        string postReplyBody = GeneratePostBody(commands);
                         comment.Reply(postReplyBody);
                         Console.WriteLine($"Reply posted to {comment.AuthorName}!");
                     }
@@ -68,21 +67,36 @@ namespace BookHorseBot
             }
         }
 
-        private static List<string> ExtractCommands(MatchCollection matches)
+        private static List<Command> ExtractCommands(MatchCollection matches)
         {
-            List<string> list = new List<string>();
+            List<Command> list = new List<Command>();
             foreach (Match match in matches)
             {
-                list.Add(Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 :]", ""));
+                Command c = new Command();
+                //Check to see if our request is a valid URL
+                if (Uri.IsWellFormedUriString(match.Value, UriKind.RelativeOrAbsolute))
+                {
+                    if (new Uri(match.Value).Host.Contains("fimfiction.net"))
+                    {
+                        c.Request = match.Value;
+                        c.Type = Command.RequestType.SearchUrl;
+                    }
+                }
+                else
+                {
+                    c.Request = Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 :]", "");
+                }
+                list.Add(c);
             }
             return list;
         }
 
-        private static string GeneratePostBody(List<StoryData.Story> rootList)
+        private static string GeneratePostBody(List<Command> command)
         {
             string template = "";
-            foreach (var root in rootList)
+            foreach (Command r in command.Where(t => t.Response.GetType() == typeof(StoryData.Story)))
             {
+                var root = (StoryData.Story) r.Response;
                 if (root.data.Length == 0)
                 {
                     template += Constants.NoResults;
@@ -111,10 +125,6 @@ namespace BookHorseBot
                 template += "[](//sp)" +
                             "\r\n \r\n" +
                             "-----";
-            }
-            if (rootList.All(x => x.data.Length == 0) || rootList.Count == 0)
-            {
-                template = Constants.NoResults;
             }
 
             template += Constants.Footer;
@@ -147,63 +157,53 @@ namespace BookHorseBot
             return builtTagLineContent;
         }
 
-        private static List<StoryData.Story> GetPostText(List<string> sanitizedNames)
+        private static void GetPostText(List<Command> sanitizedNames)
         {
-            List<StoryData.Story> resultCollection = new List<StoryData.Story>();
-            foreach (var sanitizedName in sanitizedNames)
+            foreach (Command c in sanitizedNames)
             {
-                if (CommandList.Any(x => sanitizedName.StartsWith(x)))
+                string command = c.Request;
+                if (CommandList.Any(x => command.StartsWith(x)))
                 {
-                    string commandBody = sanitizedName.Substring(sanitizedName.IndexOf(':') + 1,
-                        sanitizedName.Length - 2);
-                    switch (sanitizedName.Split(':').First().ToLower())
+                    string commandHeader = command.Split(':').First().ToLower();
+                    string commandBody = command.Substring(command.IndexOf(':') + 1,
+                        command.Length - 2);
+                    switch (commandHeader)
                     {
                         case "s":
                         case "story":
                         {
-                            StoryData.Story r = StoryIdLookup(commandBody);
-                            resultCollection.Add(r);
+                                c.Type = Command.RequestType.SearchId;
+                                c.Response = StoryIdLookup(commandBody);
                         }
                             break;
                     }
                 }
                 else
                 {
-                    if (Uri.IsWellFormedUriString(sanitizedName, UriKind.RelativeOrAbsolute))
+                    if (c.Type == Command.RequestType.SearchUrl)
                     {
-                        Uri myUri = new Uri(sanitizedName);
-                        if (myUri.Host.Contains("fimfiction.net"))
-                        {
-                            var s = myUri.ToString().Split('/').ToList();
-                            int index = s.FindIndex(x => x == "story") + 1;
-                            string id = s[index];
-                            StoryData.Story r = StoryIdLookup(id);
-                            resultCollection.Add(r);
-                        }
-                        else
-                        {
-                            //Pass a null to tell the user that nothing was found.
-                            StoryData.Story r = new StoryData.Story();
-                            resultCollection.Add(r);
-                        }
+                        var s = c.Request.Split('/').ToList();
+                        int index = s.FindIndex(x => x == "story") + 1;
+                        string id = s[index];
+                        c.Response = StoryIdLookup(id);
                     }
                     else
                     {
-                        string queryUrl = Constants.StoryQueryUrl($"?query={sanitizedName}&");
+                        string queryUrl = Constants.StoryQueryUrl($"?query={command}&");
                         string res =
                             BotClient.GetStringAsync(queryUrl)
                                 .Result;
                         StoryData.Story searchResult = JsonConvert.DeserializeObject<StoryData.Story>(res);
-                        resultCollection.Add(searchResult);
+                        c.Type = Command.RequestType.SearchName;
+                        c.Response = searchResult;
                     }
                 }
             }
-            return resultCollection;
         }
 
-        private static StoryData.Story StoryIdLookup(string ID)
+        private static StoryData.Story StoryIdLookup(string id)
         {
-            string queryUrl = Constants.StoryQueryUrl($"/{ID}?");
+            string queryUrl = Constants.StoryQueryUrl($"/{id}?");
             string res = BotClient.GetStringAsync(queryUrl).Result;
             StoryData.StorySingle searchResult =
                 JsonConvert.DeserializeObject<StoryData.StorySingle>(res);

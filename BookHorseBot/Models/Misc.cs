@@ -17,22 +17,22 @@ namespace BookHorseBot.Models
         {
             public string Request { get; set; }
             public RequestType Type { get; set; }
-            public RequestResult Result { get; set; } = RequestResult.Nothing_Happened;
+            public RequestResult Result { get; set; } = RequestResult.NothingHappened;
             public object Response { get; set; } = null;
             
             public enum RequestResult
             {
                 Success,        //All good! 
                 Fail,           //Some error or exception occured when performing the command.
-                Not_Found,       //Search or request returned no results
-                Nothing_Happened //Nothing happened means the application didn't do anything....Yet
+                NotFound,       //Search or request returned no results
+                NothingHappened //Nothing happened means the application didn't do anything....Yet
             }
 
             public enum RequestType
             {
-                Search_Name,    //{My Little Dashie}
-                Search_ID,      //{S:1888}
-                Search_URL      //{https://www.fimfiction.net/story/1888/my-little-dashie}
+                SearchName,    //{My Little Dashie}
+                SearchId,      //{S:1888}
+                SearchUrl      //{https://www.fimfiction.net/story/1888/my-little-dashie}
             }
         }
     }
