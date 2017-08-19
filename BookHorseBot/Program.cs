@@ -13,7 +13,7 @@ using RedditSharp.Things;
 
 using static BookHorseBot.Configuration;
 using static BookHorseBot.Models.Misc;
-
+using static BookHorseBot.Models.Misc.Command.RequestType;
 using Reddit = RedditSharp.Reddit;
 
 namespace BookHorseBot
@@ -24,7 +24,8 @@ namespace BookHorseBot
 
         static readonly List<string> CommandList = new List<String>
         {
-            "S:" //StoryData Lookup - using Ids!
+            "s:",    //StoryData Lookup - using Ids!
+            "c:"     //Command - various!
         };
 
         static void Main()
@@ -40,8 +41,10 @@ namespace BookHorseBot
             Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "mylittlepony");
             IEnumerable<Comment> commentStream =
                 subreddit.CommentStream.Where(c => !ignoredUsers.Contains(c.AuthorName.ToLower())
-                                                   && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-15)
+                                                   && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-15) &&
+                                                   c.AuthorName.ToLower() != redditName.ToLower()
                 );
+            
 
             foreach (Comment comment in commentStream)
             {
@@ -55,7 +58,8 @@ namespace BookHorseBot
                 Comment qualifiedComment = reddit.GetComment(new Uri(comment.Shortlink));
                 if (qualifiedComment.Comments.All(x => x.AuthorName != redditName))
                 {
-                    List<Command> commands = ExtractCommands(matches);
+                    string username = qualifiedComment.AuthorName.ToLower();
+                    List<Command> commands = ExtractCommands(matches, username);
                     if (commands.Count > 0)
                     {
                         GetPostText(commands);
@@ -67,35 +71,63 @@ namespace BookHorseBot
             }
         }
 
-        private static List<Command> ExtractCommands(MatchCollection matches)
+        private static List<Command> ExtractCommands(MatchCollection matches, string username)
         {
             List<Command> list = new List<Command>();
             foreach (Match match in matches)
             {
-                Command c = new Command();
+                Command c = new Command {Username = username};
                 //Check to see if our request is a valid URL
-                if (Uri.IsWellFormedUriString(match.Value, UriKind.RelativeOrAbsolute))
+                Uri uriResult;
+                if (Uri.TryCreate(match.Value, UriKind.Absolute, out uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
                 {
                     if (new Uri(match.Value).Host.Contains("fimfiction.net"))
                     {
                         c.Request = match.Value;
-                        c.Type = Command.RequestType.SearchUrl;
+                        c.Type = SearchUrl;
                     }
                 }
                 else
                 {
-                    c.Request = Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 :]", "");
+                    MatchCollection parenthesisMatches = Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
+                    if (parenthesisMatches.Count == 1)
+                    {
+                        if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+                        {
+                            if (new Uri(match.Value).Host.Contains("fimfiction.net"))
+                            {
+                                c.Request = parenthesisMatches[0].Value;
+                                c.Type = SearchUrl;
+                            }
+                        }
+                        else
+                        {
+                            MatchCollection sBracketMatches = Regex.Matches(match.Value.Trim(), @"(?<=\[)[^]]*(?=\])", RegexOptions.None);
+                            if (sBracketMatches.Count == 1)
+                            {
+                                c.Request = Regex.Replace(sBracketMatches[0].Value.Trim(), @"[^a-zA-Z0-9 : -]", "");
+                                c.Type = SearchName;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        c.Request = Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 : -]", "");
+                        c.Type = SearchName;
+                    }
                 }
                 list.Add(c);
             }
             return list;
         }
 
-        private static string GeneratePostBody(List<Command> command)
+        private static string GeneratePostBody(List<Command> commands)
         {
             string template = "";
-            foreach (Command r in command.Where(t => t.Response.GetType() == typeof(StoryData.Story)))
+            foreach (Command r in commands)
             {
+                if (r.Type == SearchId || r.Type == SearchName || r.Type == SearchUrl)
+                {
                 var root = (StoryData.Story) r.Response;
                 if (root.data.Length == 0)
                 {
@@ -109,7 +141,7 @@ namespace BookHorseBot
                 }
                 else
                 {
-                    string u = GetUsername(root);
+                    string u = GetAuthorUsername(root);
                     template += "\r\n [](/twibeam) \r\n" +
                                 $"#[{story.attributes.title}]({story.meta.url})\r\n" +
                                 $"*by [{u}](https://www.fimfiction.net/user/{story.relationships.author.data.id}/{u}) " +
@@ -117,7 +149,7 @@ namespace BookHorseBot
                                 $"| {Utils.FormatNumber(story.attributes.total_num_views)} Views" +
                                 $"| {Utils.FormatNumber(story.attributes.num_words)} Words " +
                                 $"| Status: `{Utils.UppercaseFirst(story.attributes.completion_status)}` " +
-                                $"| Rating: `{(double) story.attributes.rating}%`*\r\n\r\n" +
+                                $"| Rating: `\U0001F44D {story.attributes.num_likes} | \U0001F44E {story.attributes.num_dislikes}`*\r\n\r\n" +
                                 $"{story.attributes.short_description}" +
                                 "\r\n\r\n" +
                                 $"**Tags**: {GenerateTags(root)}";
@@ -125,6 +157,12 @@ namespace BookHorseBot
                 template += "[](//sp)" +
                             "\r\n \r\n" +
                             "-----";
+                }
+
+                if (r.Type == OptOut)
+                {
+                    template += Constants.OptOut;
+                }
             }
 
             template += Constants.Footer;
@@ -132,7 +170,7 @@ namespace BookHorseBot
             return template;
         }
 
-        private static string GetUsername(StoryData.Story s)
+        private static string GetAuthorUsername(StoryData.Story s)
         {
             string authorId = s.data.First().relationships.author.data.id;
 
@@ -162,7 +200,7 @@ namespace BookHorseBot
             foreach (Command c in sanitizedNames)
             {
                 string command = c.Request;
-                if (CommandList.Any(x => command.StartsWith(x)))
+                if (CommandList.Any(x => command.StartsWith(x.ToLower())))
                 {
                     string commandHeader = command.Split(':').First().ToLower();
                     string commandBody = command.Substring(command.IndexOf(':') + 1,
@@ -172,15 +210,27 @@ namespace BookHorseBot
                         case "s":
                         case "story":
                         {
-                                c.Type = Command.RequestType.SearchId;
+                                c.Type = SearchId;
                                 c.Response = StoryIdLookup(commandBody);
+                        }
+                            break;
+                        case "c":
+                        case "command":
+                        {
+                            if (commandBody.ToLower() == "stop")
+                            {
+                                C.Ignored.User.Add(c.Username);
+                                Save.Config();
+                                c.Type = OptOut;
+                                c.Result = Command.RequestResult.Success;
+                            }
                         }
                             break;
                     }
                 }
                 else
                 {
-                    if (c.Type == Command.RequestType.SearchUrl)
+                    if (c.Type == SearchUrl)
                     {
                         var s = c.Request.Split('/').ToList();
                         int index = s.FindIndex(x => x == "story") + 1;
@@ -189,12 +239,13 @@ namespace BookHorseBot
                     }
                     else
                     {
+                        command = command.Replace(":", " ");
                         string queryUrl = Constants.StoryQueryUrl($"?query={command}&");
                         string res =
                             BotClient.GetStringAsync(queryUrl)
                                 .Result;
                         StoryData.Story searchResult = JsonConvert.DeserializeObject<StoryData.Story>(res);
-                        c.Type = Command.RequestType.SearchName;
+                        c.Type = SearchName;
                         c.Response = searchResult;
                     }
                 }

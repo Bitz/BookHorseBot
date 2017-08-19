@@ -16,6 +16,7 @@ namespace BookHorseBot.Models
         public class Command
         {
             public string Request { get; set; }
+            public string Username { get; set; }
             public RequestType Type { get; set; }
             public RequestResult Result { get; set; } = RequestResult.NothingHappened;
             public object Response { get; set; } = null;
@@ -32,7 +33,9 @@ namespace BookHorseBot.Models
             {
                 SearchName,    //{My Little Dashie}
                 SearchId,      //{S:1888}
-                SearchUrl      //{https://www.fimfiction.net/story/1888/my-little-dashie}
+                SearchUrl,      //{https://www.fimfiction.net/story/1888/my-little-dashie}
+                OptOut,
+                OptIn,
             }
         }
     }

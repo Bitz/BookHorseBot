@@ -42,7 +42,8 @@ namespace BookHorseBot.Models
             public DateTime date_published { get; set; }
             public int total_num_views { get; set; }
             public int num_words { get; set; }
-            public int rating { get; set; }
+            public int num_likes { get; set; }
+            public int num_dislikes { get; set; }
             public string completion_status { get; set; }
             public string content_rating { get; set; }
         }
