@@ -34,8 +34,6 @@ namespace BookHorseBot.Models
                 SearchName,    //{My Little Dashie}
                 SearchId,      //{S:1888}
                 SearchUrl,      //{https://www.fimfiction.net/story/1888/my-little-dashie}
-                OptOut,
-                OptIn,
             }
         }
     }

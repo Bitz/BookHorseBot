@@ -25,7 +25,6 @@ namespace BookHorseBot
         static readonly List<string> CommandList = new List<String>
         {
             "s:",    //StoryData Lookup - using Ids!
-            "c:"     //Command - various!
         };
 
         static void Main()
@@ -73,28 +72,43 @@ namespace BookHorseBot
 
         private static List<Command> ExtractCommands(MatchCollection matches, string username)
         {
+            
             List<Command> list = new List<Command>();
             foreach (Match match in matches)
             {
+                Uri uriResult;
                 Command c = new Command {Username = username};
                 //Check to see if our request is a valid URL
-                Uri uriResult;
-                if (Uri.TryCreate(match.Value, UriKind.Absolute, out uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+                if (CommandList.Any(x => match.Value.StartsWith(x.ToLower()))) //If is command or not.
+                {
+                    string commandHeader = match.Value.Split(':').First().ToLower();
+                    string commandBody = match.Value.Substring(match.Value.IndexOf(':') + 1,
+                        match.Value.Length - 2);
+                    switch (commandHeader)
+                    {
+                        case "s":
+                        {
+                            c.Type = SearchId;
+                            c.Request = commandBody;
+                        }
+                            break;
+                    }
+                } //If is url lookup
+                else if (Uri.TryCreate(match.Value, UriKind.Absolute, out uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
                 {
                     if (new Uri(match.Value).Host.Contains("fimfiction.net"))
                     {
                         c.Request = match.Value;
                         c.Type = SearchUrl;
                     }
-                }
-                else
+                } 
+                else //If markup url or name search
                 {
                     MatchCollection parenthesisMatches = Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
                     //True- linking with a url using markup. Use the url, and fallback to the textinside
                     if (parenthesisMatches.Count == 1)
                     {
                         if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) && 
-                            (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps) &&
                             uriResult.Host.Contains("fimfiction.net"))
                         {
                                 c.Request = parenthesisMatches[0].Value;
@@ -110,7 +124,7 @@ namespace BookHorseBot
                             }
                         }
                     }
-                    else
+                    else //Name search
                     {
                         c.Request = Uri.EscapeDataString(match.Value.Trim());
                         c.Type = SearchName;
@@ -149,7 +163,7 @@ namespace BookHorseBot
                                 $"| {Utils.FormatNumber(story.attributes.total_num_views)} Views" +
                                 $"| {Utils.FormatNumber(story.attributes.num_words)} Words " +
                                 $"| Status: `{Utils.UppercaseFirst(story.attributes.completion_status)}` " +
-                                $"| Rating: `\U0001F44D {story.attributes.num_likes} | \U0001F44E {story.attributes.num_dislikes}`*\r\n\r\n" +
+                                $"| Rating: {GetRatingString(story)}*\r\n\r\n" +
                                 $"{story.attributes.short_description}" +
                                 "\r\n\r\n" +
                                 $"**Tags**: {GenerateTags(root)}";
@@ -157,11 +171,6 @@ namespace BookHorseBot
                 template += "[](//sp)" +
                             "\r\n \r\n" +
                             "-----";
-                }
-
-                if (r.Type == OptOut)
-                {
-                    template += Constants.OptOut;
                 }
             }
 
@@ -176,6 +185,13 @@ namespace BookHorseBot
 
             var authorName = s.included.First(x => x.id == authorId && x.type == "user").attributes.name;
             return authorName;
+        }
+
+        private static string GetRatingString(StoryData.Datum story)
+        {
+            return story.attributes.num_likes == -1 && story.attributes.num_dislikes == -1
+                ? "`Hidden`"
+                : $"`\U0001F44D {story.attributes.num_likes} | \U0001F44E {story.attributes.num_dislikes}`";
         }
 
         private static string GenerateTags(StoryData.Story relationshipsTags)
@@ -200,54 +216,22 @@ namespace BookHorseBot
             foreach (Command c in sanitizedNames)
             {
                 string command = c.Request;
-                if (CommandList.Any(x => command.StartsWith(x.ToLower())))
+                switch (c.Type)
                 {
-                    string commandHeader = command.Split(':').First().ToLower();
-                    string commandBody = command.Substring(command.IndexOf(':') + 1,
-                        command.Length - 2);
-                    switch (commandHeader)
-                    {
-                        case "s":
-                        case "story":
-                        {
-                                c.Type = SearchId;
-                                c.Response = StoryIdLookup(commandBody);
-                        }
-                            break;
-                        case "c":
-                        case "command":
-                        {
-                            if (commandBody.ToLower() == "stop")
-                            {
-                                C.Ignored.User.Add(c.Username);
-                                Save.Config();
-                                c.Type = OptOut;
-                                c.Result = Command.RequestResult.Success;
-                            }
-                        }
-                            break;
-                    }
-                }
-                else
-                {
-                    if (c.Type == SearchUrl)
-                    {
+                    case SearchUrl: //Actually, search by url will use the id, sneaky.
                         var s = c.Request.Split('/').ToList();
                         int index = s.FindIndex(x => x == "story") + 1;
                         string id = s[index];
                         c.Response = StoryIdLookup(id);
-                    }
-                    else
-                    {
-                        command = command.Replace(":", " ");
-                        string queryUrl = Constants.StoryQueryUrl($"?query={command}&");
-                        string res =
-                            BotClient.GetStringAsync(queryUrl)
-                                .Result;
+                        break;
+                    case SearchId:
+                        c.Response = StoryIdLookup(c.Request);
+                        break;
+                    case SearchName:
+                        string res = BotClient.GetStringAsync(Constants.StoryQueryUrl($"?query={command}&")).Result;
                         StoryData.Story searchResult = JsonConvert.DeserializeObject<StoryData.Story>(res);
-                        c.Type = SearchName;
                         c.Response = searchResult;
-                    }
+                        break;
                 }
             }
         }
