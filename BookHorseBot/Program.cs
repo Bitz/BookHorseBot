@@ -90,29 +90,29 @@ namespace BookHorseBot
                 else
                 {
                     MatchCollection parenthesisMatches = Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
+                    //True- linking with a url using markup. Use the url, and fallback to the textinside
                     if (parenthesisMatches.Count == 1)
                     {
-                        if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+                        if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) && 
+                            (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps) &&
+                            uriResult.Host.Contains("fimfiction.net"))
                         {
-                            if (new Uri(match.Value).Host.Contains("fimfiction.net"))
-                            {
                                 c.Request = parenthesisMatches[0].Value;
                                 c.Type = SearchUrl;
-                            }
                         }
                         else
                         {
                             MatchCollection sBracketMatches = Regex.Matches(match.Value.Trim(), @"(?<=\[)[^]]*(?=\])", RegexOptions.None);
                             if (sBracketMatches.Count == 1)
                             {
-                                c.Request = Regex.Replace(sBracketMatches[0].Value.Trim(), @"[^a-zA-Z0-9 : -]", "");
+                                c.Request = Uri.EscapeDataString(sBracketMatches[0].Value.Trim());
                                 c.Type = SearchName;
                             }
                         }
                     }
                     else
                     {
-                        c.Request = Regex.Replace(match.Value.Trim(), @"[^a-zA-Z0-9 : -]", "");
+                        c.Request = Uri.EscapeDataString(match.Value.Trim());
                         c.Type = SearchName;
                     }
                 }
