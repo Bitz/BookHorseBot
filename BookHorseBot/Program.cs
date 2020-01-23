@@ -10,7 +10,6 @@ using BookHorseBot.Models;
 using Newtonsoft.Json;
 using RedditSharp;
 using RedditSharp.Things;
-
 using static BookHorseBot.Configuration;
 using static BookHorseBot.Models.Misc;
 using static BookHorseBot.Models.Misc.Command.RequestType;
@@ -24,7 +23,7 @@ namespace BookHorseBot
 
         static readonly List<string> CommandList = new List<String>
         {
-            "s:",    //StoryData Lookup - using Ids!
+            "s:", //StoryData Lookup - using Ids!
         };
 
         static void Main()
@@ -43,7 +42,7 @@ namespace BookHorseBot
                                                    && c.CreatedUTC >= DateTime.UtcNow.AddDays(-1) &&
                                                    c.AuthorName.ToLower() != redditName.ToLower()
                 );
-            
+
 
             foreach (Comment comment in commentStream)
             {
@@ -53,6 +52,7 @@ namespace BookHorseBot
                 {
                     continue;
                 }
+
                 //Check to see if we already replied to this comment.
                 Comment qualifiedComment = reddit.GetComment(new Uri(comment.Shortlink));
                 if (qualifiedComment.Comments.All(x => x.AuthorName != redditName))
@@ -79,7 +79,6 @@ namespace BookHorseBot
 
         private static List<Command> ExtractCommands(MatchCollection matches, string username)
         {
-            
             List<Command> list = new List<Command>();
             foreach (Match match in matches)
             {
@@ -101,29 +100,32 @@ namespace BookHorseBot
                             break;
                     }
                 } //If is url lookup
-                else if (Uri.TryCreate(match.Value, UriKind.Absolute, out uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+                else if (Uri.TryCreate(match.Value, UriKind.Absolute, out uriResult) &&
+                         (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
                 {
                     if (new Uri(match.Value).Host.Contains("fimfiction.net"))
                     {
                         c.Request = match.Value;
                         c.Type = SearchUrl;
                     }
-                } 
+                }
                 else //If markup url or name search
                 {
-                    MatchCollection parenthesisMatches = Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
+                    MatchCollection parenthesisMatches =
+                        Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
                     //True- linking with a url using markup. Use the url, and fallback to the textinside
                     if (parenthesisMatches.Count == 1)
                     {
-                        if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) && 
+                        if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) &&
                             uriResult.Host.Contains("fimfiction.net"))
                         {
-                                c.Request = parenthesisMatches[0].Value;
-                                c.Type = SearchUrl;
+                            c.Request = parenthesisMatches[0].Value;
+                            c.Type = SearchUrl;
                         }
                         else
                         {
-                            MatchCollection sBracketMatches = Regex.Matches(match.Value.Trim(), @"(?<=\[)[^]]*(?=\])", RegexOptions.None);
+                            MatchCollection sBracketMatches = Regex.Matches(match.Value.Trim(), @"(?<=\[)[^]]*(?=\])",
+                                RegexOptions.None);
                             if (sBracketMatches.Count == 1)
                             {
                                 c.Request = Uri.EscapeDataString(sBracketMatches[0].Value.Trim());
@@ -137,8 +139,10 @@ namespace BookHorseBot
                         c.Type = SearchName;
                     }
                 }
+
                 list.Add(c);
             }
+
             return list;
         }
 
@@ -149,35 +153,37 @@ namespace BookHorseBot
             {
                 if (r.Type == SearchId || r.Type == SearchName || r.Type == SearchUrl)
                 {
-                var root = (StoryData.Story) r.Response;
-                if (root.data.Length == 0)
-                {
-                    template += Constants.NoResults;
-                    continue;
-                }
-                StoryData.Datum story = root.data.First();
-                if (story.attributes.content_rating == "mature")
-                {
-                    template += Constants.NotAllowed;
-                }
-                else
-                {
-                    string u = GetAuthorUsername(root);
-                    template += "\r\n [](/twibeam) \r\n" +
-                                $"#[{story.attributes.title}]({story.meta.url})\r\n" +
-                                $"*by [{u}](https://www.fimfiction.net/user/{story.relationships.author.data.id}/{u}) " +
-                                $"| {story.attributes.date_published:dd MMM yyyy} " +
-                                $"| {Utils.FormatNumber(story.attributes.total_num_views)} Views" +
-                                $"| {Utils.FormatNumber(story.attributes.num_words)} Words " +
-                                $"| Status: `{Utils.UppercaseFirst(story.attributes.completion_status)}` " +
-                                $"| Rating: {GetRatingString(story)}*\r\n\r\n" +
-                                $"{story.attributes.short_description}" +
-                                "\r\n\r\n" +
-                                $"**Tags**: {GenerateTags(root)}";
-                }
-                template += "[](//sp)" +
-                            "\r\n \r\n" +
-                            "-----";
+                    var root = (StoryData.Story) r.Response;
+                    if (root.data.Length == 0)
+                    {
+                        template += Constants.NoResults;
+                        continue;
+                    }
+
+                    StoryData.Datum story = root.data.First();
+                    if (story.attributes.content_rating == "mature")
+                    {
+                        template += Constants.NotAllowed;
+                    }
+                    else
+                    {
+                        string u = GetAuthorUsername(root);
+                        template += "\r\n [](/twibeam) \r\n" +
+                                    $"#[{story.attributes.title}]({story.meta.url})\r\n" +
+                                    $"*by [{u}](https://www.fimfiction.net/user/{story.relationships.author.data.id}/{u}) " +
+                                    $"| {story.attributes.date_published:dd MMM yyyy} " +
+                                    $"| {Utils.FormatNumber(story.attributes.total_num_views)} Views" +
+                                    $"| {Utils.FormatNumber(story.attributes.num_words)} Words " +
+                                    $"| Status: `{Utils.UppercaseFirst(story.attributes.completion_status)}` " +
+                                    $"| Rating: {GetRatingString(story)}*\r\n\r\n" +
+                                    $"{story.attributes.short_description}" +
+                                    "\r\n\r\n" +
+                                    $"**Tags**: {GenerateTags(root)}";
+                    }
+
+                    template += "[](//sp)" +
+                                "\r\n \r\n" +
+                                "-----";
                 }
             }
 
@@ -259,6 +265,7 @@ namespace BookHorseBot
         }
 
         #region Webclient Authorizations
+
         private static Reddit AuthorizeRedditBot()
         {
             BotWebAgent webAgent = new BotWebAgent(C.Reddit.Username,
@@ -274,6 +281,7 @@ namespace BookHorseBot
             {
                 Console.WriteLine("Logged in!");
             }
+
             return reddit;
         }
 
@@ -291,6 +299,7 @@ namespace BookHorseBot
             BotClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
                 C.FimFiction.Token);
         }
+
         #endregion
     }
 }
