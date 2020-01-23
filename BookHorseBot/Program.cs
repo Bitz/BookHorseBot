@@ -29,7 +29,7 @@ namespace BookHorseBot
 
         static void Main()
         {
-            bool dbug = Debugger.IsAttached;
+            bool dbug = false;
             Console.Title = "BookHorseBot " + Constants.Version;
             List<string> ignoredUsers = C.Ignored.User;
             //Does all the dirty work of handling oAuth and tokens. Gives botclient authentication.
@@ -40,7 +40,7 @@ namespace BookHorseBot
             Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "mylittlepony");
             IEnumerable<Comment> commentStream =
                 subreddit.CommentStream.Where(c => !ignoredUsers.Contains(c.AuthorName.ToLower())
-                                                   && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-15) &&
+                                                   && c.CreatedUTC >= DateTime.UtcNow.AddDays(-1) &&
                                                    c.AuthorName.ToLower() != redditName.ToLower()
                 );
             
@@ -63,8 +63,15 @@ namespace BookHorseBot
                     {
                         GetPostText(commands);
                         string postReplyBody = GeneratePostBody(commands);
-                        comment.Reply(postReplyBody);
-                        Console.WriteLine($"Reply posted to {comment.AuthorName}!");
+                        try
+                        {
+                            comment.Reply(postReplyBody);
+                            Console.WriteLine($"Reply posted to {comment.AuthorName}!");
+                        }
+                        catch (Exception e)
+                        {
+                            System.Console.WriteLine(e);
+                        }
                     }
                 }
             }
