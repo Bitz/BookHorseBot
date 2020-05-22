@@ -37,13 +37,15 @@ namespace BookHorseBot
             Reddit reddit = AuthorizeRedditBot();
             string redditName = reddit.User.FullName;
             Console.WriteLine(dbug ? "Debug detected. Running on test subreddit!" : "Running on Main subreddit!");
-            Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "mylittlepony");
+            Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "bronyvillers");
             IEnumerable<Comment> commentStream =
                 subreddit.CommentStream.Where(c => !ignoredUsers.Contains(c.AuthorName.ToLower())
-                                                   && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-15) &&
+                                                   && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-120) &&
                                                    c.AuthorName.ToLower() != redditName.ToLower()
                 );
-            
+            //IEnumerable<Comment> commentStream = subreddit.Comments.Where(c => !ignoredUsers.Contains(c.AuthorName.ToLower())
+            //                             && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-8640) &&
+            //                             c.AuthorName.ToLower() != redditName.ToLower());
 
             foreach (Comment comment in commentStream)
             {
@@ -79,7 +81,7 @@ namespace BookHorseBot
                 Uri uriResult;
                 Command c = new Command {Username = username};
                 //Check to see if our request is a valid URL
-                if (CommandList.Any(x => match.Value.StartsWith(x.ToLower()))) //If is command or not.
+                if (CommandList.Any(x => match.Value.ToLower().StartsWith(x.ToLower()))) //If is command or not.
                 {
                     string commandHeader = match.Value.Split(':').First().ToLower();
                     string commandBody = match.Value.Substring(match.Value.IndexOf(':') + 1,
@@ -106,7 +108,7 @@ namespace BookHorseBot
                 {
                     MatchCollection parenthesisMatches = Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
                     //True- linking with a url using markup. Use the url, and fallback to the textinside
-                    if (parenthesisMatches.Count == 1)
+                    if (parenthesisMatches.Count == 1 && match.Value.Trim().Contains("[") && match.Value.Trim().Contains("]"))
                     {
                         if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) && 
                             uriResult.Host.Contains("fimfiction.net"))
@@ -142,35 +144,35 @@ namespace BookHorseBot
             {
                 if (r.Type == SearchId || r.Type == SearchName || r.Type == SearchUrl)
                 {
-                var root = (StoryData.Story) r.Response;
-                if (root.data.Length == 0)
-                {
-                    template += Constants.NoResults;
-                    continue;
-                }
-                StoryData.Datum story = root.data.First();
-                if (story.attributes.content_rating == "mature")
-                {
-                    template += Constants.NotAllowed;
-                }
-                else
-                {
-                    string u = GetAuthorUsername(root);
-                    template += "\r\n [](/twibeam) \r\n" +
-                                $"#[{story.attributes.title}]({story.meta.url})\r\n" +
-                                $"*by [{u}](https://www.fimfiction.net/user/{story.relationships.author.data.id}/{u}) " +
-                                $"| {story.attributes.date_published:dd MMM yyyy} " +
-                                $"| {Utils.FormatNumber(story.attributes.total_num_views)} Views" +
-                                $"| {Utils.FormatNumber(story.attributes.num_words)} Words " +
-                                $"| Status: `{Utils.UppercaseFirst(story.attributes.completion_status)}` " +
-                                $"| Rating: {GetRatingString(story)}*\r\n\r\n" +
-                                $"{story.attributes.short_description}" +
-                                "\r\n\r\n" +
-                                $"**Tags**: {GenerateTags(root)}";
-                }
-                template += "[](//sp)" +
-                            "\r\n \r\n" +
-                            "-----";
+                    var root = (StoryData.Story) r.Response;
+                    if (root.data.Length == 0)
+                    {
+                        template += Constants.NoResults;
+                        continue;
+                    }
+                    StoryData.Datum story = root.data.First();
+                    if (story.attributes.content_rating == "mature")
+                    {
+                        template += Constants.NotAllowed;
+                    }
+                    else
+                    {
+                        string u = GetAuthorUsername(root);
+                        template += "\r\n [](/twibeam) \r\n" +
+                                    $"#[{story.attributes.title}]({story.meta.url})\r\n" +
+                                    $"*by [{u}](https://www.fimfiction.net/user/{story.relationships.author.data.id}/{u}) " +
+                                    $"| {story.attributes.date_published:dd MMM yyyy} " +
+                                    $"| {Utils.FormatNumber(story.attributes.total_num_views)} Views" +
+                                    $"| {Utils.FormatNumber(story.attributes.num_words)} Words " +
+                                    $"| Status: `{Utils.UppercaseFirst(story.attributes.completion_status)}` " +
+                                    $"| Rating: {GetRatingString(story)}*\r\n\r\n" +
+                                    $"{story.attributes.short_description}" +
+                                    "\r\n\r\n" +
+                                    $"**Tags**: {GenerateTags(root)}";
+                    }
+                    template += "[](//sp)" +
+                                "\r\n \r\n" +
+                                "-----";
                 }
             }
 
