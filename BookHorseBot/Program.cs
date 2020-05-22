@@ -10,7 +10,6 @@ using BookHorseBot.Models;
 using Newtonsoft.Json;
 using RedditSharp;
 using RedditSharp.Things;
-
 using static BookHorseBot.Configuration;
 using static BookHorseBot.Models.Misc;
 using static BookHorseBot.Models.Misc.Command.RequestType;
@@ -24,7 +23,7 @@ namespace BookHorseBot
 
         static readonly List<string> CommandList = new List<String>
         {
-            "s:",    //StoryData Lookup - using Ids!
+            "s:", //StoryData Lookup - using Ids!
         };
 
         static void Main()
@@ -37,15 +36,13 @@ namespace BookHorseBot
             Reddit reddit = AuthorizeRedditBot();
             string redditName = reddit.User.FullName;
             Console.WriteLine(dbug ? "Debug detected. Running on test subreddit!" : "Running on Main subreddit!");
-            Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "bronyvillers");
+            Subreddit subreddit = reddit.GetSubreddit(dbug ? "bronyvillers" : "mylittlepony");
             IEnumerable<Comment> commentStream =
                 subreddit.CommentStream.Where(c => !ignoredUsers.Contains(c.AuthorName.ToLower())
                                                    && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-120) &&
                                                    c.AuthorName.ToLower() != redditName.ToLower()
                 );
-            //IEnumerable<Comment> commentStream = subreddit.Comments.Where(c => !ignoredUsers.Contains(c.AuthorName.ToLower())
-            //                             && c.CreatedUTC >= DateTime.UtcNow.AddMinutes(-8640) &&
-            //                             c.AuthorName.ToLower() != redditName.ToLower());
+
 
             foreach (Comment comment in commentStream)
             {
@@ -65,8 +62,15 @@ namespace BookHorseBot
                     {
                         GetPostText(commands);
                         string postReplyBody = GeneratePostBody(commands);
-                        comment.Reply(postReplyBody);
-                        Console.WriteLine($"Reply posted to {comment.AuthorName}!");
+                        try
+                        {
+                            comment.Reply(postReplyBody);
+                            Console.WriteLine($"Reply posted to {comment.AuthorName}!");
+                        }
+                        catch (Exception e)
+                        {
+                            System.Console.WriteLine(e);
+                        }
                     }
                 }
             }
@@ -74,7 +78,6 @@ namespace BookHorseBot
 
         private static List<Command> ExtractCommands(MatchCollection matches, string username)
         {
-            
             List<Command> list = new List<Command>();
             foreach (Match match in matches)
             {
@@ -96,29 +99,32 @@ namespace BookHorseBot
                             break;
                     }
                 } //If is url lookup
-                else if (Uri.TryCreate(match.Value, UriKind.Absolute, out uriResult) && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+                else if (Uri.TryCreate(match.Value, UriKind.Absolute, out uriResult) &&
+                         (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
                 {
                     if (new Uri(match.Value).Host.Contains("fimfiction.net"))
                     {
                         c.Request = match.Value;
                         c.Type = SearchUrl;
                     }
-                } 
+                }
                 else //If markup url or name search
                 {
-                    MatchCollection parenthesisMatches = Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
+                    MatchCollection parenthesisMatches =
+                        Regex.Matches(match.Value.Trim(), @"(?<=\()[^)]*(?=\))", RegexOptions.None);
                     //True- linking with a url using markup. Use the url, and fallback to the textinside
                     if (parenthesisMatches.Count == 1 && match.Value.Trim().Contains("[") && match.Value.Trim().Contains("]"))
                     {
-                        if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) && 
+                        if (Uri.TryCreate(parenthesisMatches[0].Value, UriKind.Absolute, out uriResult) &&
                             uriResult.Host.Contains("fimfiction.net"))
                         {
-                                c.Request = parenthesisMatches[0].Value;
-                                c.Type = SearchUrl;
+                            c.Request = parenthesisMatches[0].Value;
+                            c.Type = SearchUrl;
                         }
                         else
                         {
-                            MatchCollection sBracketMatches = Regex.Matches(match.Value.Trim(), @"(?<=\[)[^]]*(?=\])", RegexOptions.None);
+                            MatchCollection sBracketMatches = Regex.Matches(match.Value.Trim(), @"(?<=\[)[^]]*(?=\])",
+                                RegexOptions.None);
                             if (sBracketMatches.Count == 1)
                             {
                                 c.Request = Uri.EscapeDataString(sBracketMatches[0].Value.Trim());
@@ -150,6 +156,7 @@ namespace BookHorseBot
                         template += Constants.NoResults;
                         continue;
                     }
+
                     StoryData.Datum story = root.data.First();
                     if (story.attributes.content_rating == "mature")
                     {
@@ -170,6 +177,7 @@ namespace BookHorseBot
                                     "\r\n\r\n" +
                                     $"**Tags**: {GenerateTags(root)}";
                     }
+
                     template += "[](//sp)" +
                                 "\r\n \r\n" +
                                 "-----";
@@ -254,6 +262,7 @@ namespace BookHorseBot
         }
 
         #region Webclient Authorizations
+
         private static Reddit AuthorizeRedditBot()
         {
             BotWebAgent webAgent = new BotWebAgent(C.Reddit.Username,
@@ -269,6 +278,7 @@ namespace BookHorseBot
             {
                 Console.WriteLine("Logged in!");
             }
+
             return reddit;
         }
 
@@ -286,6 +296,7 @@ namespace BookHorseBot
             BotClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
                 C.FimFiction.Token);
         }
+
         #endregion
     }
 }
